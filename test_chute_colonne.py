@@ -41,7 +41,7 @@ alpha_0 = 0
 dt = 1e-4
 
 paroi = True
-
+gravite = True
 
 
 
