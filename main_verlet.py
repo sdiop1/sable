@@ -1,6 +1,12 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Created on Wed Feb 28 12:45:34 2018
 
+@author: sdiop
+
+Nouvelle version du main avec l'algorithme de verlet
+"""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -39,34 +45,39 @@ alpha_0 = 0
 
 dt = 1e-4
 
-paroi = True
-
 
 
 
 
 class grain :
+    '''
+    Definition des méthodes et attributs des grains
+    '''
     
     def __init__(self,x0,y0,vx0,vy0):
-        self.pos = np.array([x0,y0]) #position initiale du centre
-        self.vit = np.array([vx0,vy0]) #vitesse initiale nulle
-        self.acc = np.array([0,0],dtype='float64') #accélération
-        self.pos_n = np.array([x0,y0])
-        self.vit_n = np.array([vx0,vy0]) 
-        self.color = (rd.randint(0,1),rd.randint(0,1),rd.randint(0,1),rd.randint(0,1))
+        self.pos = np.array([x0,y0]) #position à t
+        self.vit = np.array([vx0,vy0]) #vitesse à t
+        self.acc = np.array([0.,0.], dtype = 'float64') #accélération à t
+        
+        self.pos_a = np.array([x0,y0]) - np.array([vx0,vy0])*dt  # position à t-dt
+        self.pos_n = np.array([x0,y0]) #position à t+dt
+        self.vit_n = np.array([vx0,vy0]) #position à t+dt
          
         self.voisins = [] #liste des voisins
         self.bords = [] #liste de booléens [gauche,bas,droite], True si contact, False sinon
         
     def detecter_voisins(self):
-        # on teste tous les grains (différents de i) pour voir si ils sont en contact
+        '''
+        Renvoie la liste des grains j en contact avec le grain self
+        On teste tous les grains (différents de i) pour voir si ils sont en contact
+        '''
         self.voisins=[]
         for k in grains:
             if ((k.pos[0]-self.pos[0])**2+(k.pos[1]-self.pos[1])**2 < 4*R**2) and k != self:
                 self.voisins.append(k)
                 
                 
-    def contact_paroi(self):
+    def detecter_paroi(self):
         self.bords = []
         if self.pos[0] < -L/2 + R:
           self.bords.append(True)
@@ -86,6 +97,9 @@ class grain :
 
 
 def perp_vec(a,v):
+    '''
+    Renvoie un vecteur unitaire b perpendiculaire au vecteur a, et dans le sens du vecteur v
+    '''
     x,y = a
     if y != 0:
         b = np.array([1/np.sqrt(1+(x/y)**2),-x/(y*np.sqrt(1+(x/y)**2))])
@@ -98,18 +112,14 @@ def perp_vec(a,v):
 
 
 
-def force_grain(i,j, nouveau = False):
-    '''A partir de deux grains i et j en contact renvoie FTo = np.array([FTox, FToy])  i-->j'''
-    if nouveau == True :
-        xi, yi = i.pos_n
-        xj, yj = j.pos_n
-        vxi, vyi = i.pos_n
-        vxj, vyj = j.vit_n
-    if nouveau == False :
-        xi, yi = i.pos
-        xj, yj = j.pos
-        vxi, vyi = i.pos
-        vxj, vyj = j.vit
+def force_grain(i,j):
+    '''
+    Fonction de calcul de la force due au grain i s'appliquant sur le grain j
+    '''
+    xi, yi = i.pos
+    xj, yj = j.pos
+    vxi, vyi = i.pos
+    vxj, vyj = j.vit
     
     rij = np.array([xj -xi , yj-yi])
     vij = np.array([vxj - vxi, vyj - vyi])
@@ -128,14 +138,14 @@ def force_grain(i,j, nouveau = False):
 
 
 
-def force_paroi(i, nouveau = False):
-    if nouveau == True :
-        x,y = i.pos_n
-        vx,vy = i.vit_n
-    if nouveau == False :
-        x,y = i.pos
-        vx,vy = i.vit
+def force_paroi(i):
+    '''
+    Fonction de calcul de la force s'appliquant sur le grain i à cause de la paroi
+    '''    
+    x,y = i.pos
+    vx,vy = i.vit
     f = np.array([0.,0.])
+    
     if i.bords[0] == True :
         alpha = -(x-R+L/2)
         if vx > 0 :
@@ -161,20 +171,23 @@ def force_paroi(i, nouveau = False):
     
     
 
-def force_totale(i, nouveau = False):
-    force = np.array([0,-m*g],dtype='float64')
+def force_totale(i, gravite = True, paroi = True):
+    '''
+    Fonction renvoyant la force totale s'appliquant sur le grain i.
+    gravite : détermine si le poids est pris en compte dans la force
+    paroi : détermine si la force du récipient est prise en compte
+    '''
+    force = np.array([0.,0.],dtype='float64')
     i.detecter_voisins()
-    i.contact_paroi()
+    i.detecter_paroi()
     for j in i.voisins:
-        if nouveau == True:
-            force += force_grain(j,i, True)
-        else :
-            force += force_grain(j,i, False)
+        force += force_grain(j,i)
+        force += force_grain(j,i)
     if paroi == True :
-        if nouveau == True :
-            force += force_paroi(i, True)
-        else :
-            force += force_paroi(i, False)
+        force += force_paroi(i)
+        force += force_paroi(i)
+    if gravite == True :
+        force += np.array([0.,-m*g],dtype='float64')
     return force
     
 
@@ -183,20 +196,17 @@ def force_totale(i, nouveau = False):
   
 
 def mise_a_jour(remove=True):
-    global R
-    # 1 : calculer les nouvelles vitesses/positions de tous les grains, algo de Verlet
-    # 2 : les "nouvelles positions/vitesses" deviennent les pos/vit actuelles
-    #     si un grain sort du silo on ne le prend plus en compte dans l'étude
+    '''
+    Fonction de mise à jour de la liste des positions/vitesses des grains par l'algorithme de Verlet à deux pas.
+    1 : calculer les nouvelles vitesses/positions de tous les grains
+    2 : les "nouvelles positions/vitesses" deviennent les pos/vit actuelles
+        lorsque remove vaut True : si un grain sort du silo (y < y_min) on ne le prend plus en compte dans l'étude
+    '''
     for i in grains:
-        # i.vit_n = i.vit + dt * i.acc
-        # i.pos_n = i.pos + dt * i.vit_n
-        i.acc = 1/m * force_totale(i, False)
-        i.pos_n = i.pos + i.vit * dt + i.acc * dt**2 *0.5
-        i.acc = 1/m * force_totale(i, True)
-        i.vit_n = i.vit + i.acc * dt/2
-        i.vit_n = i.vit_n + i.acc * dt/2
+        i.pos_n = 2 * i.pos - i.pos_a + 1/m * force_totale(i) * dt**2
+        i.vit_n = (i.pos_n - i.pos-a)/(2*dt)
     for i in grains:
-        i.pos = i.pos_n
+        i.pos, i.pos_a = i.pos_n, i.pos
         i.vit = i.vit_n
         if i.pos[1] < y_min :
             if remove == True:
