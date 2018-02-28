@@ -29,7 +29,7 @@ y_min = -R
 g = 1
 
 # paramètres des contacts
-Kc = 5e5/(2*R)
+Kc = 1e4 * m*g/R
 restitution = 0.3
 Kd = restitution**2*Kc
 Kd_2 = 0
@@ -211,3 +211,26 @@ def mise_a_jour(remove=True):
         if i.pos[1] < y_min :
             if remove == True:
                 grains.remove(i)
+                
+                
+def trajectoires(grains, t_final):
+    '''
+    Renvoie les trajectoires [X,Y,VX,VY,temps] qui sont tous des arrays d'un ensemble de grains initial 'grains', entre les instants 0 et t_final
+    '''
+    t = 0
+    X = [[] for k in range(len(grains))]
+    Y = [[] for k in range(len(grains))]
+    VX = [[] for k in range(len(grains))]
+    VY = [[] for k in range(len(grains))]
+    temps = []
+    while t < t_final:
+        temps.append(t)
+        for i in range(len(grains)) :
+            X[i].append(grains[i].pos[0])
+            Y[i].append(grains[i].pos[1])
+            VX[i].append(grains[i].vit[0])
+            VY[i].append(grains[i].vit[1])
+        mise_a_jour()
+        t += dt
+    
+    return(np.array(X),np.array(Y),np.array(VX),np.array(VY),np.array(temps))
