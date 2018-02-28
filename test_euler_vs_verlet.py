@@ -41,6 +41,7 @@ dt = 1e-5
 
 
 paroi = False
+gravite = False
 
 
 
