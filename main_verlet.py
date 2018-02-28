@@ -204,7 +204,7 @@ def mise_a_jour(remove=True):
     '''
     for i in grains:
         i.pos_n = 2 * i.pos - i.pos_a + 1/m * force_totale(i) * dt**2
-        i.vit_n = (i.pos_n - i.pos-a)/(2*dt)
+        i.vit_n = (i.pos_n - i.pos_a)/(2*dt)
     for i in grains:
         i.pos, i.pos_a = i.pos_n, i.pos
         i.vit = i.vit_n
