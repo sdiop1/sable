@@ -56,24 +56,5 @@ def animer(grains0, film = False):
     grains = grains0
     ani = animation.FuncAnimation(fig, update,  blit=False, interval=1, repeat=True)
     return ani
-  
-def trajectoires(grains, t_final):
-    #renvoie les trajectoires [X,Y,VX,VY,temps] qui sont tous des arrays d'un ensemble de grains initial 'grains', entre les instants 0 et t_final
-    t = 0
-    X = [[] for k in range(len(grains))]
-    Y = [[] for k in range(len(grains))]
-    VX = [[] for k in range(len(grains))]
-    VY = [[] for k in range(len(grains))]
-    temps = []
-    while t < t_final:
-        temps.append(t)
-        for i in range(len(grains)) :
-            X[i].append(grains[i].pos[0])
-            Y[i].append(grains[i].pos[1])
-            VX[i].append(grains[i].vit[0])
-            VY[i].append(grains[i].vit[1])
-        mise_a_jour()
-        t += dt
-    
-    return(np.array(X),np.array(Y),np.array(VX),np.array(VY),np.array(temps))
+
   
