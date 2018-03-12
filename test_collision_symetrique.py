@@ -3,6 +3,8 @@
 Created on Wed Feb 21 09:00:52 2018
 
 @author: LouisC
+
+Influence de la valeur du dt sur la symetrie d'une collision
 """
 
 # paramètres :
