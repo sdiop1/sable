@@ -28,7 +28,6 @@ import random as rd
 R = 1
 m = 1
 
-# exterieur
 L=20
 e=2
 y_min = -R
@@ -36,18 +35,17 @@ g = 1
 
 # paramètres des contacts
 Kc = 1e4 * m*g/R
-restitution = 0.3
-Kd = restitution**2*Kc
-Kd_2 = 0
-Kc_p = 1e6/(2*R)
-restitution_p = 0
-Kd_p = restitution_p**2*Kc_p
 Kt = 7
-mu = 0.7
-mu_p = 1
+mu = 0.5
+gamma = 200
+xi = 10
+
+Kc_p = 1e4*m*g/R
 Kt_p = 7
-alpha_0 = 0
-gamma = 10 
+mu_p = 0.5
+gamma_p = 10
+xi_p = 10
+
 
 dt = 1e-4
 
@@ -141,7 +139,7 @@ def force_grain(i,j):
     vit_tan = np.dot(vij,tij)
     vit_norm = np.dot(vij,nij)
     
-    return (Kc*delta - gamma*vit_norm)*nij - min((mu*Kc*delta, Kt*vit_tan))*tij
+    return (Kc*delta - gamma*(1-np.exp(-delta*xi))*vit_norm)*nij - min((mu*Kc*delta, Kt*vit_tan))*tij
 
 
 
@@ -156,18 +154,18 @@ def force_paroi(i):
     f = np.array([0.,0.])
     
     if i.bords[0] == True :
-        alpha = -(x-R+L/2)
+        delta = -(x-R+L/2)
         
-        f += np.array([Kd_p*alpha - gamma*vx,-min((mu_p*Kc_p*alpha, Kt_p*vy))])
+        f += np.array([Kc_p*delta - gamma_p*(1-np.exp(-delta*xi_p))*vx,-min((mu_p*Kc_p*delta, Kt_p*vy))])
         
     if i.bords[2] == True :
-        alpha = x+R-L/2
-        f += np.array([-Kc_p*alpha + gamma*vx,-min((mu_p*Kc_p*alpha, Kt_p*vy))])
+        delta = x+R-L/2
+        f += np.array([-Kc_p*delta - gamma_p*(1-np.exp(-delta*xi_p))*vx,-min((mu_p*Kc_p*delta, Kt_p*vy))])
         
 
     if i.bords[1] == True :
-        alpha = R-y
-        f += np.array([-min((mu_p*Kc_p*alpha, Kt_p*vx)), Kd_p*alpha - gamma*vy])
+        delta = R-y
+        f += np.array([-min((mu_p*Kc_p*delta, Kt_p*vx)), Kc_p*delta - gamma_p*(1-np.exp(-delta*xi_p))*vy])
         
     return f
     
@@ -192,7 +190,6 @@ def force_totale(i):
         fg = force_grain(j,i) 
         force += fg
         i.force_voisins += fg 
-        
     if paroi == True :
         fp = force_paroi(i)  
         force += fp 
@@ -207,7 +204,7 @@ def force_totale(i):
   
   
 
-def mise_a_jour(remove=True):
+def mise_a_jour():
     '''
     Fonction de mise à jour de la liste des positions/vitesses des grains par l'algorithme de Verlet à deux pas.
     1 : calculer les nouvelles vitesses/positions de tous les grains
