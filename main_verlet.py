@@ -14,38 +14,6 @@ import matplotlib.animation as animation
 import random as rd
 
 
-# paramètres :
-
-# grains
-R = 1
-m = 1
-
-# exterieur
-L=20
-e=2
-y_min = -R
-g = 1
-
-# paramètres des contacts
-Kc = 1e4 * m*g/R
-restitution = 0.3
-Kd = restitution**2*Kc
-Kd_2 = 0
-Kc_p = 1e6/(2*R)
-restitution_p = 0
-Kd_p = restitution_p**2*Kc_p
-Kt = 7
-mu = 0.7
-mu_p = 1
-Kt_p = 7
-alpha_0 = 0
-
-
-dt = 1e-4
-
-
-
-
 
 class grain :
     '''
@@ -96,24 +64,6 @@ class grain :
 
 
 
-
-
-def perp_vec(a,v):
-    '''
-    Renvoie un vecteur unitaire b perpendiculaire au vecteur a, et dans le sens du vecteur v
-    '''
-    x,y = a
-    if y != 0:
-        b = np.array([1/np.sqrt(1+(x/y)**2),-x/(y*np.sqrt(1+(x/y)**2))])
-    else :
-        b = np.array([-y/(x*np.sqrt(1+(y/x)**2)),1/(np.sqrt(1+(y/x)**2))])
-    if np.dot(b,v) > 0 : return b
-    else : return -b
-    
-
-
-
-
 def force_grain(i,j):
     '''
     Fonction de calcul de la force due au grain i s'appliquant sur le grain j
@@ -123,19 +73,30 @@ def force_grain(i,j):
     vxi, vyi = i.pos
     vxj, vyj = j.vit
     
-    rij = np.array([xj -xi , yj-yi])
+    rij = np.array([xj - xi, yj - yi])
+    x, y = rij
     vij = np.array([vxj - vxi, vyj - vyi])
+    r = np.linalg.norm(rij)
     
-    nij = rij / np.sqrt(np.dot(rij,rij))
-    tij = perp_vec(nij,vij) 
+    u_r = 1/r * np.array([x, y])
+    u_t = 1/r * np.array([-y, x])
     
-    delta = 2*R - np.sqrt(np.dot(rij,rij)) 
-    vit_tan = np.dot(vij,tij)
+    v_t = np.dot(vij, u_t)
+    v_r = np.dot(vij, u_r)
     
-    if np.dot(nij,vij) < 0:
-        return Kc*delta*nij - min((mu*Kc*delta, Kt*vit_tan))*tij
-    if np.dot(nij,vij) > 0:
-        return Kd*delta*nij - min((mu*Kd*delta, Kt*vit_tan))*tij          
+    if np.dot(vij,u_r) < 0 :
+        K = Kc
+    else :
+        K = Kd
+    
+    F_r = K*(2*R - r)
+    if np.abs(Kt * v_t) < np.abs(mu * F_r) : 
+        F_t = - Kt * v_t
+    else :
+        F_t = - mu * np.abs(F_r) * np.sign(v_t)
+        
+    return F_r * u_r + F_t * u_t
+       
 
 
 
@@ -182,21 +143,19 @@ def force_totale(i):
     force = np.array([0.,0.],dtype='float64')
     i.detecter_voisins()
     i.detecter_paroi()
-    i.force_voisins = np.array([0.,0.])
-    i.force_paroi = np.array([0.,0.])
-    i.grav = np.array([0.,0.])
+    
     for j in i.voisins:
         fg = force_grain(j,i) 
         force += fg
-        i.force_voisins += fg 
         
     if paroi == True :
         fp = force_paroi(i)  
         force += fp 
-        i.force_paroi += fp
+        
     if gravite == True :
         fgrav = np.array([0.,-m*g],dtype='float64')
         force += fgrav
+        
     return force
     
 
@@ -219,45 +178,37 @@ def mise_a_jour(remove=True):
     for i in grains:
         i.pos, i.pos_a = i.pos_n, i.pos
         i.vit = i.vit_n
-        if i.pos[1] < y_min :
-            if remove == True:
+        if remove == True:
+            if i.pos[1] < y_min :
                 grains.remove(i)
+                
                 
                 
 def trajectoires(grains, t_final):
     '''
-    Renvoie les trajectoires [X,Y,VX,VY,temps] qui sont tous des arrays d'un ensemble de grains initial 'grains', entre les instants 0 et t_final
+    Renvoie les trajectoires [T,X,Y,VX,VY] qui sont tous des arrays d'un ensemble de grains initial 'grains', entre les instants 0 et t_final
     '''
     t = 0
     X = [[] for k in range(len(grains))]
     Y = [[] for k in range(len(grains))]
     VX = [[] for k in range(len(grains))]
     VY = [[] for k in range(len(grains))]
-    FX = [[] for k in range(len(grains))] #forces totales en x sur les grains
-    FY = [[] for k in range(len(grains))]  
-    FpX = [[] for k in range(len(grains))]#forces de la paroi en y sur les grains 
-    FpY = [[] for k in range(len(grains))]
-    FvX = [[] for k in range(len(grains))]#forces des voisisns en x sur les grains
-    FvY = [[] for k in range(len(grains))]
-    G = [[] for k in range(len(grains))]
+
     
     temps = []
+
     while t < t_final:
-        temps.append(t)
         for i in range(len(grains)) :
             X[i].append(grains[i].pos[0])
             Y[i].append(grains[i].pos[1])
             VX[i].append(grains[i].vit[0])
             VY[i].append(grains[i].vit[1])
-            FX[i].append(grains[i].force[0])
-            FY[i].append(grains[i].force[1])
-            FpX[i].append(grains[i].force_paroi[0])
-            FpY[i].append(grains[i].force_paroi[1])
-            FvX[i].append(grains[i].force_voisins[0])
-            FvY[i].append(grains[i].force_voisins[1])
-            G[i].append(grains[i].grav[1])
-
-
+        temps.append(t)
         mise_a_jour()
         t += dt
-    return(np.array(temps),np.array(X),np.array(Y),np.array(VX),np.array(VY),np.array(FX),np.array(FY),np.array(FpX),np.array(FpY),np.array(FvX),np.array(FvY),np.array(G))
+        
+    for k in range(len(X)): X[k] = np.array(X[k])
+    for k in range(len(Y)): Y[k] = np.array(Y[k])
+    for k in range(len(VX)): VX[k] = np.array(VX[k])
+    for k in range(len(VY)): VY[k] = np.array(VY[k])
+    return(temps, X, Y, VX, VY)
