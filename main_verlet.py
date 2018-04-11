@@ -49,6 +49,7 @@ class grain :
                 
     def detecter_paroi(self):
         self.bords = []
+        if paroi == False : self.bords = [False, False, False]
         if self.pos[0] < -L/2 + R:
           self.bords.append(True)
         else:
@@ -88,8 +89,8 @@ def force_grain(i,j):
         K = Kc
     else :
         K = Kd
-    
     F_r = K*(2*R - r)
+    
     if np.abs(Kt * v_t) < np.abs(mu * F_r) : 
         F_t = - Kt * v_t
     else :
